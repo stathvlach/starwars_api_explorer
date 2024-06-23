@@ -157,6 +157,12 @@ def swapi_get_characters(name_pattern, character_attrs, planet_attrs):
     if len(name_pattern) <= 0:
         return None
     
+    if character_attrs is None:
+        return None
+    
+    if planet_attrs is None:
+        return None
+    
     people_url = None
 
     response = requests.get(SWAPI_ROOT_URL)
@@ -172,34 +178,35 @@ def swapi_get_characters(name_pattern, character_attrs, planet_attrs):
             characters = response.json()['result']
 
             characters_f = []
-   
-            for character in characters:
 
-                attr_f = {'id': character['uid']}
-                for attr in character_attrs:
-                    attr_f[attr] = character['properties'][attr]
+            if characters is not None:
+                for character in characters:
 
-                # Get data for character's homeworld
-                response = requests.get(attr_f['homeworld'])
+                    attr_f = {'id': character['uid']}
+                    for attr in character_attrs:
+                        attr_f[attr] = character['properties'][attr]
 
-                if response.status_code == HTTP_RESPONSE_OK:
-                    planet = response.json()['result']
+                    # Get data for character's homeworld
+                    response = requests.get(attr_f['homeworld'])
 
-                    attr_f['homeworld'] = {'id': planet['uid']}
-                    for attr in planet_attrs:
-                        attr_f['homeworld'][attr] = planet['properties'][attr]
+                    if response.status_code == HTTP_RESPONSE_OK:
+                        planet = response.json()['result']
 
-                    if attr_f['homeworld']['orbital_period'] != 'unknown':
-                        attr_f['homeworld']['to_earth_years'] = float(attr_f['homeworld']['orbital_period'])/earth_orbital_period
-                    else:
-                        attr_f['homeworld']['to_earth_years'] = 'unknown'
+                        attr_f['homeworld'] = {'id': planet['uid']}
+                        for attr in planet_attrs:
+                            attr_f['homeworld'][attr] = planet['properties'][attr]
 
-                    if attr_f['homeworld']['rotation_period'] != 'unknown':
-                        attr_f['homeworld']['to_earth_days'] = float(attr_f['homeworld']['rotation_period'])/earth_rotational_period
-                    else:
-                        attr_f['homeworld']['to_earth_days'] = 'unknown'
+                        if attr_f['homeworld']['orbital_period'] != 'unknown':
+                            attr_f['homeworld']['to_earth_years'] = float(attr_f['homeworld']['orbital_period'])/earth_orbital_period
+                        else:
+                            attr_f['homeworld']['to_earth_years'] = 'unknown'
 
-                characters_f.append(attr_f)
+                        if attr_f['homeworld']['rotation_period'] != 'unknown':
+                            attr_f['homeworld']['to_earth_days'] = float(attr_f['homeworld']['rotation_period'])/earth_rotational_period
+                        else:
+                            attr_f['homeworld']['to_earth_days'] = 'unknown'
+
+                    characters_f.append(attr_f)
 
             if len(characters_f) > 0:
                 return characters_f
@@ -212,10 +219,11 @@ def get_character_attr_labels():
     attr_labels = None
 
     records = sql_execute_dql("SELECT DISTINCT API_ATTRIBUTE, LABEL FROM " + SWAPI_ATTRIBUTES_TABLE + " WHERE API_ATTRIBUTE IS NOT NULL AND API_KEY = 'people';")
-    if len(records) > 0:
-        attr_labels = {}
-        for record in records:
-            attr_labels[record[0]] = record[1]
+    if records is not None:
+        if len(records) > 0:
+            attr_labels = {}
+            for record in records:
+                attr_labels[record[0]] = record[1]
     
     return attr_labels
 
@@ -225,10 +233,11 @@ def get_planets_attr_labels():
     attr_labels = None
 
     records = sql_execute_dql("SELECT DISTINCT API_ATTRIBUTE, LABEL FROM " + SWAPI_ATTRIBUTES_TABLE + " WHERE API_ATTRIBUTE IS NOT NULL AND API_KEY = 'planets';")
-    if len(records) > 0:
-        attr_labels = {}
-        for record in records:
-            attr_labels[record[0]] = record[1]
+    if records is not None:
+        if len(records) > 0:
+            attr_labels = {}
+            for record in records:
+                attr_labels[record[0]] = record[1]
     
     return attr_labels
 
@@ -265,10 +274,11 @@ def pretty_print_homeworld_info(character, planet_attrs):
 ##  Functions to manage the cache memory  ##
 ############################################
 def cache_is_search_saved(search_term):
-
-    if search_term is None or len(search_term) <= 0:
-        return None
     
+    if search_term is None:
+        if len(search_term) <= 0:
+            return None
+  
     res = sql_execute_dql("SELECT count(*) FROM " + SWAPI_CACHE_TABLE +" WHERE PROMPT_SEARCH_TERMS = '" + search_term +"';")
     
     if res is not None:
@@ -293,8 +303,9 @@ def cache_save_search(search_term, search_results):
 
 def cache_load_search(search_term):
 
-    if search_term is None or len(search_term) <= 0:
-        return None
+    if search_term is None:
+        if len(search_term) <= 0:
+            return None
 
     cached_search = sql_execute_dql("SELECT CACHE_TIMESTAMP, RESULTS_JSON FROM swapi_cache WHERE PROMPT_SEARCH_TERMS = '" + search_term + "' GROUP BY PROMPT_SEARCH_TERMS HAVING CACHE_ID = max(CACHE_ID);")
 
@@ -306,11 +317,13 @@ def cache_load_search(search_term):
 
 def cache_load_search_by_term_and_date(term, date):
 
-    if term is None or len(term) <= 0:
-        return None
+    if term is None:
+        if len(term) <= 0:
+            return None
     
-    if date is None or len(date) <= 0:
-        return None
+    if date is None:
+        if len(date) <= 0:
+            return None
     
     records = sql_execute_dql("SELECT RESULTS_JSON FROM swapi_cache WHERE PROMPT_SEARCH_TERMS ='" + term + "' and CACHE_TIMESTAMP like '" + date + "%';")
 
@@ -371,21 +384,24 @@ def command_handler_search(args):
     character_attrs = get_character_attr_labels()
     planets_attrs = get_planets_attr_labels()
 
-    if cache_is_search_saved(args.search_query):
+    search_term = args.search_query.replace("'", "")
+    search_term = search_term.replace('"', '')
+
+    if cache_is_search_saved(search_term):
         
-        res = cache_load_search(args.search_query)
+        res = cache_load_search(search_term)
 
         characters = res[1]
         is_cached_msg = "\n\ncached: " + (str(res[0]).replace("_", " ").replace("~", ":"))[:-3]
 
     else:
-        characters = swapi_get_characters(args.search_query, character_attrs, planets_attrs)
+        characters = swapi_get_characters(search_term, character_attrs, planets_attrs)
 
         if characters is None:
             print("The force is not strong within you ")
             return None
         
-        cache_save_search(args.search_query, characters)
+        cache_save_search(search_term, characters)
 
     for character in characters:
 
