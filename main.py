@@ -18,7 +18,15 @@ SQL_SWAPI_ATTRIBUTES_DML_SCRIPT = os.path.join(SQL_DIR, 'tbl_dico_swapi_attribut
 SQL_SWAPI_CACHE_DDL_SCRIPT = os.path.join(SQL_DIR, 'tbl_swapi_cache_ddl.sql')
 
 SQLITE_DB = os.path.join(BASE_DIR, 'starwars.db')
-SQLITE_MASTER_TABLE = 'sqlite_master'
+SQLITE_MASTER_TABLE = 'sqlite_schema'
+try:
+    with sqlite3.connect(SQLITE_DB) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM %s;" % (SQLITE_MASTER_TABLE))
+        cursor.close()
+except sqlite3.Error as e:
+    SQLITE_MASTER_TABLE = 'sqlite_master'
+
 SWAPI_ATTRIBUTES_TABLE = 'dico_swapi_attributes'
 SWAPI_CACHE_TABLE = 'swapi_cache'
 
