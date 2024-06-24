@@ -392,8 +392,7 @@ def command_handler_search(args):
     character_attrs = get_character_attr_labels()
     planets_attrs = get_planets_attr_labels()
 
-    search_term = args.search_query.replace("'", "")
-    search_term = search_term.replace('"', '')
+    search_term = args.search_query
 
     if cache_is_search_saved(search_term):
         
